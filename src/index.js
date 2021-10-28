@@ -24,12 +24,34 @@ import { fork } from 'child_process';
 import cluster from 'cluster';
 import os from 'os';
 import compression from 'compression';
+import log4js from 'log4js';
+//import logger from './services/logs';
+
+log4js.configure({
+  appenders: {
+    loggerWarn: { type: 'file', filename: './logs/warn.log' },
+    loggerError: { type: 'file', filename: './logs/error.log' },
+    loggerConsole: { type: 'console' },
+  },
+  categories: {
+    default: { appenders: ['loggerConsole'], level: 'info' },
+    fileWarn: { appenders: ['loggerWarn', 'loggerConsole'], level: 'warn' },
+    fileError: { appenders: ['loggerError', 'loggerConsole'], level: 'error' },
+  },
+});
+
+const logger = log4js.getLogger('loggerConsole');
+const loggerE = log4js.getLogger('fileError');
+const loggerW = log4js.getLogger('fileWarn');
+
+//logger.level = 'warn';
 
 const argumentos = process.argv;
 const scriptPath = path.resolve(__dirname, './utils/randoms.js');
 
 connectDb().then(() => {
-  console.log('DB CONECTADA');
+  //console.log('DB CONECTADA');
+  logger.info('DB CONECTADA');
 });
 
 /*Declaración puerto y app*/
@@ -68,15 +90,18 @@ const appWSServer = initWsServer(appServer);
 
 
 if (mode == 'CLUSTER' && cluster.isMaster) {
-  console.log(`NUMERO DE CPUS ===> ${numCPUs}`);
-  console.log(`PID MASTER ${process.pid}`);
+  //console.log(`NUMERO DE CPUS ===> ${numCPUs}`);
+ //console.log(`PID MASTER ${process.pid}`);
+ logger.info(`NUMERO DE CPUS ===> ${numCPUs}`);
+ logger.info(`PID MASTER ${process.pid}`);
 
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
 
   cluster.on('exit', (worker) => {
-    console.log(`Worker ${worker.process.pid} died at ${Date()}`);
+    logger.info(`Worker ${worker.process.pid} died at ${Date()}`);
+    //console.log(`Worker ${worker.process.pid} died at ${Date()}`);
     cluster.fork();
   });
 } else {
@@ -85,12 +110,19 @@ if (mode == 'CLUSTER' && cluster.isMaster) {
   const PORT = 8080;
 
   appServer.listen(puerto, () =>
-    console.log(
+    /*console.log(
       `Servidor express escuchando en el puerto ${puerto} - PID WORKER ${process.pid}`
-    )
+    )*/
+    logger.info(`Servidor express escuchando en el puerto ${puerto} - PID WORKER ${process.pid}`)
   );
 }
 //appServer.listen(puerto, () => console.log('Server UP en puerto', puerto));
+/*logger.info('Imprimimos Info');
+logger.warn('Imprimimos Warn');
+logger.error('Imprimimos Error');*/
+logger.info('Imprimimos Info 1');
+loggerW.warn('Imprimimos Warn 1');
+loggerE.error('Imprimimos Error 1');
 
 app.get('/randoms', (req, res) => {
    let cantidad = req.params.cant;
@@ -223,6 +255,7 @@ app.post('/guardar/', (req, res) => {
         typeof body.thumbnail != 'string' ||
         typeof price != 'number'
         ){
+          loggerW.warn('Se necesitan los datos title, thumbnail y price');
             return res.status(400).json({
                 msg: 'Se necesitan los datos title, thumbnail y price',
             });
@@ -295,9 +328,12 @@ app.get('/', isLoggedIn, (req, res) => {
 let messages = [];
 
 appWSServer.on('connection', function (socket) {
-    console.log('\n\nUn cliente se ha conectado');
+    /*console.log('\n\nUn cliente se ha conectado');
     console.log(`ID DEL SOCKET DEL CLIENTE => ${socket.client.id}`);
-    console.log(`ID DEL SOCKET DEL SERVER => ${socket.id}`);
+    console.log(`ID DEL SOCKET DEL SERVER => ${socket.id}`);*/
+    logger.info('\n\nUn cliente se ha conectado');
+    logger.info(`ID DEL SOCKET DEL CLIENTE => ${socket.client.id}`);
+    logger.info(`ID DEL SOCKET DEL SERVER => ${socket.id}`);
   
     socket.on('new-message', function (data) {
      // console.log('Datos in', data);
